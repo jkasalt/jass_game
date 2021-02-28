@@ -1,3 +1,3 @@
 fn main() {
-    println!("Hello, world!");
+    jass_game::play_game();
 }
