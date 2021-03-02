@@ -1,4 +1,4 @@
-
+use colored::Colorize;
 pub const ALL_CARDS: [Card; 36] = [
     //Clubs
     Card {
@@ -150,7 +150,7 @@ pub const ALL_CARDS: [Card; 36] = [
     },
 ];
 
-#[derive(PartialOrd, Ord,  Hash, PartialEq, Eq, Debug, Clone)]
+#[derive(PartialOrd, Ord, PartialEq, Eq, Debug, Clone, Copy)]
 pub enum Number {
     Six,
     Seven,
@@ -163,7 +163,7 @@ pub enum Number {
     Ace,
 }
 
-#[derive(PartialOrd, Ord, PartialEq, Hash, Eq, Debug, Clone)]
+#[derive(PartialOrd, Ord, PartialEq, Hash, Eq, Debug, Clone, Copy)]
 pub enum Suit {
     Clubs,
     Diamonds,
@@ -171,21 +171,21 @@ pub enum Suit {
     Spades,
 }
 
-#[derive(PartialOrd, Ord, Hash, Eq, PartialEq, Debug, Clone)]
+#[derive(PartialOrd, Ord, Eq, PartialEq, Debug, Clone, Copy)]
 pub struct Card {
-    suit: Suit,
-    number: Number,
+    pub suit: Suit,
+    pub number: Number,
 }
 
 impl Card {
 
-    pub fn value(&self, trump: &Suit) -> u8 {
-        match &self.number {
+    pub fn value(&self, trump: Suit) -> u8 {
+        match self.number {
             Number::Six => 0,
             Number::Seven => 0,
             Number::Eight => 0,
             Number::Nine => {
-                if &self.suit == trump {
+                if self.suit == trump {
                     14
                 } else {
                     0
@@ -193,7 +193,7 @@ impl Card {
             }
             Number::Ten => 10,
             Number::Jack => {
-                if &self.suit == trump {
+                if self.suit == trump {
                     20
                 } else {
                     2
@@ -205,13 +205,13 @@ impl Card {
         }
     }
 
-    pub fn power(&self, trump: &Suit) -> u8 {
-        match &self.number {
+    pub fn power(&self, trump: Suit) -> u8 {
+        match self.number {
             Number::Six => 0,
             Number::Seven => 1,
             Number::Eight => 2,
             Number::Nine => {
-                if &self.suit == trump {
+                if self.suit == trump {
                     10
                 } else {
                     3
@@ -219,7 +219,7 @@ impl Card {
             }
             Number::Ten => 4,
             Number::Jack => {
-                if &self.suit == trump {
+                if self.suit == trump {
                     11
                 } else {
                     5
@@ -230,7 +230,7 @@ impl Card {
             Number::Ace => 8,
         }
     }
-    pub fn display(&self) -> String {
+    pub fn display(&self, trump: Suit, bottom: Option<Suit>) -> String {
         let s: char = match self.suit {
             Suit::Spades => '♠',
             Suit::Hearts => '♥',
@@ -249,6 +249,14 @@ impl Card {
             Number::Six => '6',
         };
         format!("[ {}{} ]", n, s)
+    }
+
+    pub fn is_playable_alone(&self, trump: Suit, bottom: Option<Suit>) -> bool {
+        //TODO implement sous-coupage rule !!!!!
+        match bottom {
+            None => true,
+            Some(s) => self.suit == trump || self.suit == s,
+        }
     }
 }
 

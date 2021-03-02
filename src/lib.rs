@@ -1,12 +1,15 @@
+use colored::Colorize;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-mod card;
 use std::{io, ops::RangeInclusive};
+mod card;
 use card::*;
 
+#[derive(Clone)]
 struct Player {
     hand: Vec<Card>,
     name: String,
+    //TODO implement cacher so that we don't have to recalculate playable_cards() every time
 }
 
 #[allow(dead_code)]
@@ -38,26 +41,54 @@ impl Player {
         }
     }
 
-    fn display_hand(&self) {
-        println!(
-            "{}'s hand:\n{:?}",
-            self.name,
-            self.hand.iter().map(|x| x.display()).collect::<String>()
-        );
+    fn display_hand(&self, trump: Suit, bottom: Option<Suit>) {
+        let playable_cards = self.playable_cards(trump, bottom);
+        println!("{}'s hand:", self.name);
+        for card in self.hand.iter() {
+            if card.suit == trump {
+                print!("{}", card.display(trump, bottom).green());
+            } else if playable_cards.contains(card) {
+                print!("{}", card.display(trump, bottom).blue());
+            } else {
+                print!("{}", card.display(trump, bottom).red());
+            }
+        }
+        print!("\n");
     }
 
-    fn play_turn(&mut self) -> Card {
+    fn playable_cards(&self, trump: Suit, bottom: Option<Suit>) -> Vec<Card> {
+        //TODO implement sous-coupage rule
+        let playable_alone: Vec<Card> = self
+            .hand
+            .clone()
+            .into_iter()
+            .filter(|x| x.is_playable_alone(trump, bottom))
+            .collect();
+        if playable_alone.is_empty() {
+            self.hand.clone()
+        } else {
+            playable_alone
+        }
+    }
+
+    fn play_turn(&mut self, trump: Suit, bottom: &mut Option<Suit>) -> Card {
         loop {
-            self.display_hand();
+            self.display_hand(trump, *bottom);
             println!("Please select a card (1-{}):", self.hand.len());
             let stdin = io::stdin();
             let mut i = String::new();
             stdin.read_line(&mut i).expect("Failed to read line");
             let i: usize = match i.trim().parse() {
                 Ok(0) => continue,
-                Ok(n) => n-1,
+                Ok(n) => n - 1,
                 Err(_) => continue,
             };
+            if !self.playable_cards(trump, *bottom).contains(&self.hand[i]) {
+                println!("this card is not playable");
+                continue;
+            } else if let None = bottom {
+                *bottom = Some(self.hand[i].suit);
+            }
             match self.discard_index(i) {
                 Ok(card) => return card,
                 Err(s) => {
@@ -68,7 +99,6 @@ impl Player {
         }
     }
 }
-
 
 fn distribute_and_create_players(deck: [Card; 36], names: [String; 4]) -> [Player; 4] {
     let mut hand1 = Vec::new();
@@ -97,24 +127,6 @@ fn distribute_and_create_players(deck: [Card; 36], names: [String; 4]) -> [Playe
     ]
 }
 
-//struct JassIter {
-//    count: usize,
-//    items: Vec<Player>,
-//    start_idx: usize,
-//}
-//
-//impl JassIter {
-//    fn new(items: Vec<Player>, start: usize, start_idx: usize) -> JassIter {
-//        JassIter { count:start, items, start_idx }
-//    }
-//}
-//
-//impl Iterator for JassIter {
-//    type Item = Player;
-//    fn next(&mut self) -> Option<Self::Item> {
-//        let idx: usize = (start_idx + count) % self.items.len();
-//    }
-//}
 struct TurnInfo {
     card: Card, //in the future we want players to be able to see the last fold played. That's why this is here
     power: u8,
@@ -123,7 +135,7 @@ struct TurnInfo {
 }
 
 impl TurnInfo {
-    fn new(card: Card, index: usize, trump: &Suit) -> TurnInfo {
+    fn new(card: Card, index: usize, trump: Suit) -> TurnInfo {
         let power = card.power(trump);
         let value = card.value(trump);
         TurnInfo {
@@ -154,9 +166,13 @@ pub fn play_round() {
     while !finished {
         let mut played_cards = Vec::<TurnInfo>::new(); //usize correspond to the index of the player who played this card for example 0 -> player A
         dbg!(idx);
-        //TODO: check if card is playable !!!!!!
+        let mut bottom_suit: Option<Suit> = None;
         for i in RangeInclusive::new(0, 3).map(|x| (x + idx) % 4) {
-            played_cards.push(TurnInfo::new(players[i].play_turn(), i, &trump_suit));
+            played_cards.push(TurnInfo::new(
+                players[i].play_turn(trump_suit, &mut bottom_suit),
+                i,
+                trump_suit,
+            ));
         }
         //find out which played card has the greatest power
         let mut w: usize = 0;
@@ -171,16 +187,24 @@ pub fn play_round() {
         match w {
             0 | 2 => points_ac += played_cards.iter().map(|x| x.value).sum::<u8>() as u32,
             1 | 3 => points_bd += played_cards.iter().map(|x| x.value).sum::<u8>() as u32,
-            _ => unreachable!("unreachable statement in play_game() for w"),
+            _ => unreachable!("unreachable statement in play_round() for w"),
         }
-        //TODO: implement cinq de der
 
         //finally if there are no more cards to play the round is finished
         if players[0].hand.len() <= 0 {
+            //cinq de der
+            match w {
+                0 | 2 => points_ac += 5,
+                1 | 3 => points_bd += 5,
+                _ => unreachable!("unreachable statement in play_round() for w"),
+            };
             finished = true;
         }
     }
-    println!("round over -- points_ac: {}  points_bd: {}", points_ac, points_bd);
+    println!(
+        "round over -- points_ac: {}  points_bd: {}",
+        points_ac, points_bd
+    );
 }
 
 #[cfg(test)]
@@ -196,14 +220,23 @@ pub(crate) mod tests {
 
     #[test]
     fn hand_play() {
-        let a = Card::new(Number::Six, Suit::Clubs);
-        let b = Card::new(Number::Six, Suit::Spades);
+        let a = Card {
+            number: Number::Six,
+            suit: Suit::Clubs,
+        };
+        let b = Card {
+            number: Number::Six,
+            suit: Suit::Spades,
+        };
         let hh = vec![a, b];
         let mut player = Player {
             hand: hh,
             name: "Jerry".to_string(),
         };
-        let a_copy = Card::new(Number::Six, Suit::Clubs);
+        let a_copy = Card {
+            number: Number::Six,
+            suit: Suit::Clubs,
+        };
         let played = player.discard(&a_copy).unwrap();
         assert_eq!(played, a_copy);
         assert_eq!(player.hand.len(), 1);
