@@ -178,9 +178,6 @@ pub struct Card {
 }
 
 impl Card {
-    pub fn new(number: Number, suit: Suit) -> Card {
-        Card{number, suit}
-    }
 
     pub fn value(&self, trump: &Suit) -> u8 {
         match &self.number {
@@ -447,11 +444,11 @@ use super::*;
 
     #[test]
     fn card_order() {
-        let big_spade = Card::new(Number::Ace, Suit::Spades);
-        let medium_spade = Card::new(Number::Nine, Suit::Spades);
-        let small_spade = Card::new(Number::Six, Suit::Spades);
-        let other_diamond = Card::new(Number::Ten, Suit::Diamonds);
-        let other_club = Card::new(Number::Ten, Suit::Clubs);
+        let big_spade = Card {number: Number::Ace, suit: Suit::Spades};
+        let medium_spade = Card {number: Number::Nine, suit: Suit::Spades};
+        let small_spade = Card {number: Number::Six, suit: Suit::Spades};
+        let other_diamond = Card {number: Number::Ten, suit: Suit::Diamonds};
+        let other_club = Card {number: Number::Ten, suit: Suit::Clubs};
 
         assert!(big_spade > medium_spade);
         assert!(!(big_spade < medium_spade));

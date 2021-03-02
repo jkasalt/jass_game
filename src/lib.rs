@@ -116,7 +116,7 @@ fn distribute_and_create_players(deck: [Card; 36], names: [String; 4]) -> [Playe
 //    }
 //}
 struct TurnInfo {
-    card: Card,
+    card: Card, //in the future we want players to be able to see the last fold played. That's why this is here
     power: u8,
     value: u8,
     index: usize,
@@ -160,9 +160,9 @@ pub fn play_round() {
         }
         //find out which played card has the greatest power
         let mut w: usize = 0;
-        for (i, turn_info) in played_cards.iter().enumerate() {
+        for turn_info in played_cards.iter() {
             if turn_info.power > played_cards[w].power {
-                w = i
+                w = turn_info.index
             }
         }
         //set the starting index as the winner's
