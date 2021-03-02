@@ -1,3 +1,3 @@
 fn main() {
-    jass_game::play_game();
+    jass_game::play_round();
 }

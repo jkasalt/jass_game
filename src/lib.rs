@@ -1,10 +1,7 @@
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use std::{
-    collections::HashSet,
-    io::{self, Read},
-};
 mod card;
+use std::{io, ops::RangeInclusive};
 use card::*;
 
 struct Player {
@@ -26,7 +23,6 @@ impl Player {
     }
 
     fn discard(&mut self, card: &Card) -> Result<Card, &str> {
-        //get index of such a card
         if let Ok(i) = self.hand.binary_search(card) {
             Ok(self.hand.remove(i))
         } else {
@@ -73,6 +69,7 @@ impl Player {
     }
 }
 
+
 fn distribute_and_create_players(deck: [Card; 36], names: [String; 4]) -> [Player; 4] {
     let mut hand1 = Vec::new();
     let mut hand2 = Vec::new();
@@ -100,9 +97,49 @@ fn distribute_and_create_players(deck: [Card; 36], names: [String; 4]) -> [Playe
     ]
 }
 
-pub fn play_game() {
+//struct JassIter {
+//    count: usize,
+//    items: Vec<Player>,
+//    start_idx: usize,
+//}
+//
+//impl JassIter {
+//    fn new(items: Vec<Player>, start: usize, start_idx: usize) -> JassIter {
+//        JassIter { count:start, items, start_idx }
+//    }
+//}
+//
+//impl Iterator for JassIter {
+//    type Item = Player;
+//    fn next(&mut self) -> Option<Self::Item> {
+//        let idx: usize = (start_idx + count) % self.items.len();
+//    }
+//}
+struct TurnInfo {
+    card: Card,
+    power: u8,
+    value: u8,
+    index: usize,
+}
+
+impl TurnInfo {
+    fn new(card: Card, index: usize, trump: &Suit) -> TurnInfo {
+        let power = card.power(trump);
+        let value = card.value(trump);
+        TurnInfo {
+            card,
+            index,
+            power,
+            value,
+        }
+    }
+}
+
+pub fn play_round() {
     let mut rng = thread_rng();
     let mut deck = ALL_CARDS.clone();
+    let mut points_ac: u32 = 0;
+    let mut points_bd: u32 = 0;
     deck.shuffle(&mut rng);
     let names = [
         "Alice".to_string(),
@@ -112,12 +149,38 @@ pub fn play_game() {
     ];
     let mut players = distribute_and_create_players(deck, names);
     let mut finished = false;
+    let mut idx = 0; //the winner begins the next fold
+    let trump_suit = Suit::Spades; //this will need to be selected by the players in game
     while !finished {
-        let played_cards = Vec::<Card>::new();
-        for player in &mut players {
-            player.play_turn();
+        let mut played_cards = Vec::<TurnInfo>::new(); //usize correspond to the index of the player who played this card for example 0 -> player A
+        dbg!(idx);
+        //TODO: check if card is playable !!!!!!
+        for i in RangeInclusive::new(0, 3).map(|x| (x + idx) % 4) {
+            played_cards.push(TurnInfo::new(players[i].play_turn(), i, &trump_suit));
+        }
+        //find out which played card has the greatest power
+        let mut w: usize = 0;
+        for (i, turn_info) in played_cards.iter().enumerate() {
+            if turn_info.power > played_cards[w].power {
+                w = i
+            }
+        }
+        //set the starting index as the winner's
+        idx = w;
+        //give the points to the correct team
+        match w {
+            0 | 2 => points_ac += played_cards.iter().map(|x| x.value).sum::<u8>() as u32,
+            1 | 3 => points_bd += played_cards.iter().map(|x| x.value).sum::<u8>() as u32,
+            _ => unreachable!("unreachable statement in play_game() for w"),
+        }
+        //TODO: implement cinq de der
+
+        //finally if there are no more cards to play the round is finished
+        if players[0].hand.len() <= 0 {
+            finished = true;
         }
     }
+    println!("round over -- points_ac: {}  points_bd: {}", points_ac, points_bd);
 }
 
 #[cfg(test)]

@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 
 pub const ALL_CARDS: [Card; 36] = [
     //Clubs
@@ -183,7 +182,7 @@ impl Card {
         Card{number, suit}
     }
 
-    fn value(&self, trump: &Suit) -> u8 {
+    pub fn value(&self, trump: &Suit) -> u8 {
         match &self.number {
             Number::Six => 0,
             Number::Seven => 0,
@@ -209,7 +208,7 @@ impl Card {
         }
     }
 
-    fn power(&self, trump: &Suit) -> u8 {
+    pub fn power(&self, trump: &Suit) -> u8 {
         match &self.number {
             Number::Six => 0,
             Number::Seven => 1,
@@ -259,7 +258,7 @@ impl Card {
 #[cfg(test)]
 mod card_tests {
 use super::*;
-    
+
     #[test]
     fn card_correct_value_nontrump() {
         let trump = Suit::Diamonds;
