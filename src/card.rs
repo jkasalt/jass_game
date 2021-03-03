@@ -181,23 +181,23 @@ pub struct Card {
 }
 
 impl Card {
-    pub fn jass_cmp(&self, other: &Self, trump: Suit, bottom: Suit) -> Ordering {
-        if self.suit == trump {
-            if other.suit == trump {
-                self.power(trump, bottom).cmp(&other.power(trump, bottom))
-            } else {
-                Ordering::Greater
-            }
-        } else if self.suit == bottom {
-            if other.suit == bottom {
-                self.power(trump, bottom).cmp(&other.power(trump, bottom))
-            } else {
-                Ordering::Greater
-            }
-        } else {
-            self.power(trump, bottom).cmp(&other.power(trump, bottom))
-        }
-    }
+    //pub fn jass_cmp(&self, other: &Self, trump: Suit, bottom: Suit) -> Ordering {
+    //    if self.suit == trump {
+    //        if other.suit == trump {
+    //            self.power(trump, bottom).cmp(&other.power(trump, bottom))
+    //        } else {
+    //            Ordering::Greater
+    //        }
+    //    } else if self.suit == bottom {
+    //        if other.suit == bottom {
+    //            self.power(trump, bottom).cmp(&other.power(trump, bottom))
+    //        } else {
+    //            Ordering::Greater
+    //        }
+    //    } else {
+    //        self.power(trump, bottom).cmp(&other.power(trump, bottom))
+    //    }
+    //}
 
     pub fn value(&self, trump: Suit) -> u8 {
         match self.number {
@@ -225,33 +225,38 @@ impl Card {
         }
     }
 
-    //TODO if the card is not trump or bottom it loses by default
     pub fn power(&self, trump: Suit, bottom: Suit) -> u8 {
         if self.suit != bottom && self.suit != trump {
             return 0;
         }
+        let trump_bonus: u8;
+        if self.suit == trump {
+            trump_bonus = 9;
+        } else {
+            trump_bonus = 0;
+        }
         match self.number {
-            Number::Six => 0,
-            Number::Seven => 1,
-            Number::Eight => 2,
+            Number::Six => 1 + trump_bonus,
+            Number::Seven => 2 + trump_bonus,
+            Number::Eight => 3 + trump_bonus,
             Number::Nine => {
                 if self.suit == trump {
-                    10
+                    19
                 } else {
-                    3
+                    4
                 }
             }
-            Number::Ten => 4,
+            Number::Ten => 5 + trump_bonus,
             Number::Jack => {
                 if self.suit == trump {
-                    11
+                    20
                 } else {
-                    5
+                    6
                 }
             }
-            Number::Queen => 6,
-            Number::King => 7,
-            Number::Ace => 8,
+            Number::Queen => 7 + trump_bonus,
+            Number::King => 8 + trump_bonus,
+            Number::Ace => 9 + trump_bonus,
         }
     }
     pub fn display(&self) -> String {

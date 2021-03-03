@@ -47,10 +47,12 @@ impl Player {
         }
     }
 
-    fn display_hand(&self, played_cards: &Vec<Card>, trump: Suit, bottom: Option<Suit>) {
+    fn display_hand(&self, trump: Suit, bottom: Option<Suit>) {
         println!("{}'s hand:", self.name);
         for card in self.hand.iter() {
-            if card.suit == trump && self.playable_cards.contains(card) {
+            if card.suit == trump && card.number == Number::Jack {
+                print!("{}", card.display().white());
+            } else if card.suit == trump && self.playable_cards.contains(card) {
                 print!("{}", card.display().green());
             } else if self.playable_cards.contains(card) {
                 print!("{}", card.display().blue());
@@ -128,8 +130,8 @@ impl Player {
         if self.playable_cards.len() == 1 && self.playable_cards.contains(&bour_copy) {
             self.playable_cards = self.hand.clone() //whole_hand
         }
-        print!("{}'s playable cards are:", self.name);
-        display_vec_cards(&self.playable_cards);
+        //print!("{}'s playable cards are:", self.name);
+        //display_vec_cards(&self.playable_cards);
     }
 
     fn play_turn(
@@ -140,7 +142,7 @@ impl Player {
     ) -> Card {
         self.update_playable_cards(played_cards, trump, *bottom);
         loop {
-            self.display_hand(played_cards, trump, *bottom);
+            self.display_hand(trump, *bottom);
             println!("Please select a card (1-{}):", self.hand.len());
             let stdin = io::stdin();
             let mut i = String::new();
