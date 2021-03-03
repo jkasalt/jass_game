@@ -187,7 +187,12 @@ fn has_suit(hand: &Vec<Card>, search_suit: Suit) -> bool {
 
 fn display_vec_cards(cards: &Vec<Card>) {
     for card in cards {
-        print!("{}", card.display());
+        match card.suit {
+            Suit::Spades => print!("{}", card.display().blue()),
+            Suit::Hearts => print!("{}", card.display().red()),
+            Suit::Diamonds => print!("{}", card.display().yellow()),
+            Suit::Clubs => print!("{}", card.display().purple()),
+        }
     }
     print!("\n");
 }
@@ -240,6 +245,43 @@ impl TurnInfo {
     }
 }
 
+fn ask_for_trump(players: &[Player], index: usize, was_geschorben: bool) -> Suit {
+    match was_geschorben {
+        false => println!(
+            "It is {}'s turn to choose a trump suit.",
+            players[index].name
+        ),
+        true => println!("Your partner has chibré."),
+    }
+    display_vec_cards(&players[index].hand);
+    loop {
+        let stdin = io::stdin();
+        let mut c = String::new();
+        println!("Choose a suit (P: ♠, C: ♥, Q: ♦, F: ♣ | S: scheiber)");
+        stdin.read_line(&mut c).expect("failed to read line");
+        let _: char = match c.trim().parse() {
+            Ok(c) => match c {
+                'P' | 'p' => return Suit::Spades,
+                'C' | 'c' => return Suit::Hearts,
+                'Q' | 'q' => return Suit::Diamonds,
+                'F' | 'f' => return Suit::Clubs,
+                'S' | 's' => match was_geschorben {
+                    true => continue,
+                    false => match index {
+                        0 => return ask_for_trump(players, 2, true),
+                        1 => return ask_for_trump(players, 3, true),
+                        2 => return ask_for_trump(players, 0, true),
+                        3 => return ask_for_trump(players, 1, true),
+                        _ => unreachable!("ask_trump()"),
+                    },
+                },
+                _ => continue,
+            },
+            Err(_) => continue,
+        };
+    }
+}
+
 pub fn play_round() {
     let mut rng = thread_rng();
     let mut deck = ALL_CARDS.clone();
@@ -254,8 +296,9 @@ pub fn play_round() {
     ];
     let mut players = distribute_and_create_players(deck, names);
     let mut finished = false;
+    //TODO idx needs to increase by one at the beginning of each consecutive round
     let mut idx = 0; //the winner begins the next fold
-    let trump_suit = Suit::Spades; //this will need to be selected by the players in game
+    let trump_suit = ask_for_trump(&players, idx, false);
     while !finished {
         let mut played_cards = Vec::<TurnInfo>::new(); //usize correspond to the index of the player who played this card for example 0 -> player A
         let mut bottom_suit: Option<Suit> = None;
@@ -269,13 +312,6 @@ pub fn play_round() {
                 bottom_suit.unwrap(),
             ));
         }
-        //find out which played card has the greatest power
-        //let mut w: usize = 0;
-        //for turn_info in played_cards.iter() {
-        //    if turn_info.power > played_cards[w].power {
-        //        w = turn_info.index
-        //    }
-        //}
         //for debug only: show cards played and the one that won
         print!("the played cards were...");
         display_vec_cards(&played_cards.iter().map(|x| x.card).collect());
