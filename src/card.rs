@@ -1,4 +1,5 @@
 use colored::Colorize;
+use std::cmp::Ordering;
 pub const ALL_CARDS: [Card; 36] = [
     //Clubs
     Card {
@@ -163,6 +164,7 @@ pub enum Number {
     Ace,
 }
 
+//Order is derived only for DISPLAY has nothing to do with the power in-game
 #[derive(PartialOrd, Ord, PartialEq, Hash, Eq, Debug, Clone, Copy)]
 pub enum Suit {
     Clubs,
@@ -171,13 +173,31 @@ pub enum Suit {
     Spades,
 }
 
-#[derive(PartialOrd, Ord, Eq, PartialEq, Debug, Clone, Copy)]
+//Order is derived only for DISPLAY has nothing to do with the power in-game
+#[derive(Eq, Ord, PartialOrd, PartialEq, Debug, Clone, Copy)]
 pub struct Card {
     pub suit: Suit,
     pub number: Number,
 }
 
 impl Card {
+    pub fn jass_cmp(&self, other: &Self, trump: Suit, bottom: Suit) -> Ordering {
+        if self.suit == trump {
+            if other.suit == trump {
+                self.power(trump, bottom).cmp(&other.power(trump, bottom))
+            } else {
+                Ordering::Greater
+            }
+        } else if self.suit == bottom {
+            if other.suit == bottom {
+                self.power(trump, bottom).cmp(&other.power(trump, bottom))
+            } else {
+                Ordering::Greater
+            }
+        } else {
+            self.power(trump, bottom).cmp(&other.power(trump, bottom))
+        }
+    }
 
     pub fn value(&self, trump: Suit) -> u8 {
         match self.number {
@@ -205,7 +225,11 @@ impl Card {
         }
     }
 
-    pub fn power(&self, trump: Suit) -> u8 {
+    //TODO if the card is not trump or bottom it loses by default
+    pub fn power(&self, trump: Suit, bottom: Suit) -> u8 {
+        if self.suit != bottom && self.suit != trump {
+            return 0;
+        }
         match self.number {
             Number::Six => 0,
             Number::Seven => 1,
@@ -230,7 +254,7 @@ impl Card {
             Number::Ace => 8,
         }
     }
-    pub fn display(&self, trump: Suit, bottom: Option<Suit>) -> String {
+    pub fn display(&self) -> String {
         let s: char = match self.suit {
             Suit::Spades => '♠',
             Suit::Hearts => '♥',
@@ -250,19 +274,11 @@ impl Card {
         };
         format!("[ {}{} ]", n, s)
     }
-
-    pub fn is_playable_alone(&self, trump: Suit, bottom: Option<Suit>) -> bool {
-        //TODO implement sous-coupage rule !!!!!
-        match bottom {
-            None => true,
-            Some(s) => self.suit == trump || self.suit == s,
-        }
-    }
 }
 
 #[cfg(test)]
 mod card_tests {
-use super::*;
+    use super::*;
 
     #[test]
     fn card_correct_value_nontrump() {
@@ -307,7 +323,7 @@ use super::*;
         let v = vec![
             card6, card7, card8, card9, card_t, card_j, card_q, card_k, card_a,
         ];
-        let values: Vec<u8> = v.iter().map(|card| card.value(&trump)).collect();
+        let values: Vec<u8> = v.iter().map(|card| card.value(trump)).collect();
         assert_eq!(values, vec![0, 0, 0, 0, 10, 2, 3, 4, 11]);
     }
     #[test]
@@ -353,13 +369,14 @@ use super::*;
         let v = vec![
             card6, card7, card8, card9, card_t, card_j, card_q, card_k, card_a,
         ];
-        let values: Vec<u8> = v.iter().map(|card| card.value(&trump)).collect();
+        let values: Vec<u8> = v.iter().map(|card| card.value(trump)).collect();
         assert_eq!(values, vec![0, 0, 0, 14, 10, 20, 3, 4, 11]);
     }
 
     #[test]
     fn card_correct_power_nontrump() {
         let trump = Suit::Diamonds;
+        let bottom = Suit::Spades;
 
         let card6 = Card {
             suit: Suit::Spades,
@@ -400,12 +417,13 @@ use super::*;
         let v = vec![
             card6, card7, card8, card9, card_t, card_j, card_q, card_k, card_a,
         ];
-        let values: Vec<u8> = v.iter().map(|card| card.power(&trump)).collect();
+        let values: Vec<u8> = v.iter().map(|card| card.power(trump, bottom)).collect();
         assert_eq!(values, vec![0, 1, 2, 3, 4, 5, 6, 7, 8]);
     }
     #[test]
     fn card_correct_power_trump() {
         let trump = Suit::Spades;
+        let bottom = trump;
 
         let card6 = Card {
             suit: Suit::Spades,
@@ -446,17 +464,32 @@ use super::*;
         let v = vec![
             card6, card7, card8, card9, card_t, card_j, card_q, card_k, card_a,
         ];
-        let values: Vec<u8> = v.iter().map(|card| card.power(&trump)).collect();
+        let values: Vec<u8> = v.iter().map(|card| card.power(trump, bottom)).collect();
         assert_eq!(values, vec![0, 1, 2, 10, 4, 11, 6, 7, 8]);
     }
 
     #[test]
     fn card_order() {
-        let big_spade = Card {number: Number::Ace, suit: Suit::Spades};
-        let medium_spade = Card {number: Number::Nine, suit: Suit::Spades};
-        let small_spade = Card {number: Number::Six, suit: Suit::Spades};
-        let other_diamond = Card {number: Number::Ten, suit: Suit::Diamonds};
-        let other_club = Card {number: Number::Ten, suit: Suit::Clubs};
+        let big_spade = Card {
+            number: Number::Ace,
+            suit: Suit::Spades,
+        };
+        let medium_spade = Card {
+            number: Number::Nine,
+            suit: Suit::Spades,
+        };
+        let small_spade = Card {
+            number: Number::Six,
+            suit: Suit::Spades,
+        };
+        let other_diamond = Card {
+            number: Number::Ten,
+            suit: Suit::Diamonds,
+        };
+        let other_club = Card {
+            number: Number::Ten,
+            suit: Suit::Clubs,
+        };
 
         assert!(big_spade > medium_spade);
         assert!(!(big_spade < medium_spade));
